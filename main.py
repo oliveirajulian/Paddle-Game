@@ -11,7 +11,7 @@ print("Aperte enter para iniciar o jogo!")
 
 pygame.init()
 inicializarBancoDeDados()
-tamanho = (800,600)
+tamanho = (1000,700)
 relogio = pygame.time.Clock()
 tela = pygame.display.set_mode( tamanho ) 
 pygame.display.set_caption("Iron Man do Marcão")
