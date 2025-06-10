@@ -35,4 +35,7 @@ def escreverDados(nome, pontos):
     banco.write(json.dumps(dadosDict))
     banco.close()
     
+    
+    
+    
     # END - inserindo no arquivo
