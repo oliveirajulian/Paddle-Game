@@ -1,7 +1,10 @@
 import pygame
 import random
-from recursos.funcoes import inicializarBancoDeDados, escreverDados
-from recursos.caixaNome import pegarNome, telaDead
+import threading
+import speech_recognition as sr
+from datetime import datetime
+from recursos.funcoes import inicializarBancoDeDados, escreverDados  # você vai ajustar escreverDados depois
+from recursos.caixaNome import pegarNome, telaDead  # vai substituir telaDead depois
 
 pygame.init()
 inicializarBancoDeDados()
@@ -26,10 +29,33 @@ fundoDead = pygame.image.load("recursos/fundoDead.png")
 bolinha_img = pygame.image.load("recursos/bolinha.png")
 fundoGame = pygame.mixer.music.load("recursos/fundoGame.mp3")
 somBolinha = pygame.mixer.Sound("recursos/somBolinha.mp3")
-
+passarinho = pygame.image.load("recursos/passarinho.png")
 
 fonteMenu = pygame.font.SysFont("comicsans", 18)
 fonteMorte = pygame.font.SysFont("arial", 120)
+
+pausado = False  # variável global para pausar
+
+def ouvir_comando():
+    global pausado
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        while True:
+            try:
+                audio = r.listen(source, timeout=5)
+                texto = r.recognize_google(audio, language="pt-BR").lower()
+                print(f"Você disse: {texto}")
+                if "pause" in texto or "pausa" in texto:
+                    pausado = not pausado
+            except sr.WaitTimeoutError:
+                pass
+            except sr.UnknownValueError:
+                pass
+            except sr.RequestError:
+                print("Erro na API de reconhecimento de voz")
+
+# Iniciar thread da voz
+threading.Thread(target=ouvir_comando, daemon=True).start()
 
 def start():
     larguraButtonStart = 150
@@ -71,8 +97,10 @@ def start():
                     if evento.key == pygame.K_RETURN:
                         nomeDoJogador = user_text.strip()
                         if nomeDoJogador != "":
+                            telaBoasVindas(nomeDoJogador)
                             jogar(nomeDoJogador)
                             return
+
                     elif evento.key == pygame.K_BACKSPACE:
                         user_text = user_text[:-1]
                     else:
@@ -100,8 +128,48 @@ def start():
 
         pygame.display.update()
         relogio.tick(60)
+        
+def telaBoasVindas(nomeDoJogador):
+    larguraBotao = 200
+    alturaBotao = 50
+    botaoComecar = pygame.Rect((tamanho[0] - larguraBotao) // 2, 500, larguraBotao, alturaBotao)
+
+    explicacao = [
+        "Bem-vindo ao Paddle Game!",
+        "Você controla a raquete com as setas para cima e para baixo.",
+        "Rebata a bolinha o máximo que conseguir.",
+        "Cada rebatida vale 1 ponto.",
+        "Boa sorte!"
+    ]
+
+    while True:
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif evento.type == pygame.MOUSEBUTTONDOWN:
+                if botaoComecar.collidepoint(evento.pos):
+                    return  # sai da função e começa o jogo
+
+        tela.fill(preto)
+
+        titulo = fonteMorte.render(f"Olá, {nomeDoJogador}!", True, branco)
+        tela.blit(titulo, ((tamanho[0] - titulo.get_width()) // 2, 100))
+
+        for i, linha in enumerate(explicacao):
+            texto = fonteMenu.render(linha, True, branco)
+            tela.blit(texto, ((tamanho[0] - texto.get_width()) // 2, 250 + i * 30))
+
+        pygame.draw.rect(tela, branco, botaoComecar, border_radius=12)
+        textoBotao = fonteMenu.render("Começar Partida", True, preto)
+        tela.blit(textoBotao, (botaoComecar.x + 30, botaoComecar.y + 15))
+
+        pygame.display.flip()
+        relogio.tick(60)
 
 def jogar(nomeDoJogador):
+    global pausado
+
     posicaoXRaquete = 30
     posicaoYRaquete = 300
     limiteInferior = 0
@@ -112,9 +180,14 @@ def jogar(nomeDoJogador):
     posicaoYBolinha = random.randint(75, 625)
     velocidadeBolinhaX = -5
     velocidadeBolinhaY = random.choice([-3, -2, 2, 3])
+    
+    passarinho_x = random.randint(50, tamanho[0] - 100)
+    passarinho_y = tamanho[1] + passarinho.get_height()
+    velocidade_passarinho = random.uniform(1.5, 3.0)
 
     pontos = 0
     rodando = True
+    colidiu_raquete = False
 
     pygame.mixer.music.play(-1)
 
@@ -122,6 +195,18 @@ def jogar(nomeDoJogador):
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 rodando = False
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_SPACE:
+                    pausado = not pausado
+
+        if pausado:
+            texto_pause = fonteMorte.render("PAUSE", True, branco)
+            tela.blit(fundoJogo, (0, 0))
+            tela.blit(texto_pause, (tamanho[0] // 2 - texto_pause.get_width() // 2,
+                                    tamanho[1] // 2 - texto_pause.get_height() // 2))
+            pygame.display.update()
+            relogio.tick(60)
+            continue
 
         teclas = pygame.key.get_pressed()
         if teclas[pygame.K_UP]:
@@ -141,43 +226,66 @@ def jogar(nomeDoJogador):
         bolinhaRect = pygame.Rect(posicaoXBolinha, posicaoYBolinha, bolinha_img.get_width(), bolinha_img.get_height())
 
         if bolinhaRect.colliderect(raqueteRect):
-            posicaoXBolinha = posicaoXRaquete + raquete.get_width()
-            velocidadeBolinhaX *= -1.1
-            pontos += 1
-            velocidadeBolinhaY = random.choice([-4, -3, -2, 2, 3, 4])
-            
-            somBolinha.play()
+            if not colidiu_raquete:
+                posicaoXBolinha = posicaoXRaquete + raquete.get_width() + 1
+
+                max_velocidade = 28
+                fator_aceleracao = 1.1
+
+                nova_velocidadeX = -velocidadeBolinhaX * fator_aceleracao
+
+                min_velocidade = 5
+                if abs(nova_velocidadeX) < min_velocidade:
+                    nova_velocidadeX = min_velocidade if nova_velocidadeX > 0 else -min_velocidade
+
+                if abs(nova_velocidadeX) > max_velocidade:
+                    nova_velocidadeX = max_velocidade if nova_velocidadeX > 0 else -max_velocidade
+
+                velocidadeBolinhaX = nova_velocidadeX
+
+                pontos += 1
+                velocidadeBolinhaY = random.choice([-4, -3, -2, 2, 3, 4])
+                somBolinha.play()
+
+                colidiu_raquete = True
+        else:
+            colidiu_raquete = False
 
         if posicaoXBolinha >= tamanho[0] - bolinha_img.get_width():
             posicaoXBolinha = tamanho[0] - bolinha_img.get_width()
             velocidadeBolinhaX *= -1.1
             velocidadeBolinhaY = random.choice([-4, -3, -2, 2, 3, 4])
 
-        # 👉 Se a bolinha sair pela esquerda (perdeu)
         if posicaoXBolinha < 0:
             pygame.mixer.music.stop()
-            escreverDados(nomeDoJogador, pontos)
-            resultado = telaDead(tela, fonteMenu, fundoDead, branco, preto, relogio)
+            escreverDados(nomeDoJogador, pontos)  # substituir pela sua função atualizada
+
+            # Substituir telaDead para a nova versão sem Tkinter e com log no Pygame
+            resultado = telaDead(tela, fonteMenu, fundoDead, branco, preto, relogio) 
 
             if resultado == "reiniciar":
                 start()
             else:
                 pygame.quit()
                 exit()
-            return  # encerra a função jogar
+            return
 
-        # Desenho na tela
+        # Passarinho voando de baixo para cima
+        passarinho_y -= velocidade_passarinho
+        if passarinho_y < -passarinho.get_height():
+            passarinho_y = tamanho[1] + passarinho.get_height()
+            passarinho_x = random.randint(50, tamanho[0] - 100)
+            velocidade_passarinho = random.uniform(1.5, 3.0)
+
         tela.blit(fundoJogo, (0, 0))
+        tela.blit(passarinho, (passarinho_x, passarinho_y))
         tela.blit(raquete, (posicaoXRaquete, posicaoYRaquete))
         tela.blit(bolinha_img, (posicaoXBolinha, posicaoYBolinha))
 
-        texto_pontos = fonteMenu.render(f"Pontos: {pontos}", True, branco)
-        tela.blit(texto_pontos, (tamanho[0] - 150, 10))
+        pontosTexto = fonteMenu.render(f"Pontos: {pontos}", True, branco)
+        tela.blit(pontosTexto, (10, 10))
 
-        pygame.display.flip()
+        pygame.display.update()
         relogio.tick(60)
-
-    pygame.mixer.music.stop()
-
 
 start()
