@@ -11,3 +11,4 @@ O jogo consiste na simulação de uma partida de paddle, a bola bate na parede e
 
 ### 🧑‍💻 Testador do Jogo:
 - [@Daniel de Mattos Acunha Nunes - RA: 1138641](https://www.github.com/nunesdaniel)
+- [@Gabriel Nunes dos Santos - RA: 1137876](https://github.com/gabnunes1305)
