@@ -1,16 +1,16 @@
-# pip install cx_freeze
-import cx_Freeze
-executaveis = [ 
-               cx_Freeze.Executable(script="feito.py", icon="assets/icone.ico") ]
-cx_Freeze.setup(
-    name = "Iron Man",
-    options={
-        "build_exe":{
-            "packages":["pygame"],
-            "include_files":["assets"]
-        }
-    }, executables = executaveis
-)
+from cx_Freeze import setup, Executable
 
-# python setup.py build
-# python setup.py bdist_msi
+build_exe_options = {
+    "packages": ["aifc", "speech_recognition", "chunk", "audioop"],
+    "include_files": ["recursos/"
+        
+    ],
+}
+
+setup(
+    name="MeuJogo",
+    version="1.0",
+    description="Jogo em Pygame com reconhecimento de voz",
+    options={"build_exe": build_exe_options},
+    executables=[Executable("main.py", base="Win32GUI")]
+)

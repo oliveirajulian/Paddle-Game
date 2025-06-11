@@ -3,12 +3,11 @@ import random
 import threading
 import speech_recognition as sr
 from datetime import datetime
-from recursos.funcoes import inicializarBancoDeDados, escreverDados  # você vai ajustar escreverDados depois
-from recursos.caixaNome import pegarNome, telaDead  # vai substituir telaDead depois
+from recursos.funcoes import inicializarBancoDeDados, escreverDados 
+from recursos.caixaNome import pegarNome, telaDead 
 
 pygame.init()
 inicializarBancoDeDados()
-
 # Configurações da tela
 tamanho = (1000, 700)
 relogio = pygame.time.Clock()
@@ -65,7 +64,7 @@ def start():
 
     pedindoNome = False
     user_text = ""
-    input_box = pygame.Rect(350, 10, 300, 40)
+    input_box = pygame.Rect(350, 600, 300, 40)
     color_inactive = pygame.Color('lightskyblue3')
     color_active = pygame.Color('dodgerblue2')
     color = color_inactive
@@ -113,18 +112,19 @@ def start():
             startButton = pygame.Rect(10, 60, larguraButtonStart, alturaButtonStart)
             pygame.draw.rect(tela, branco, startButton, border_radius=15)
             startTexto = fonteMenu.render("Iniciar Game", True, preto)
-            tela.blit(startTexto, (startButton.x + 20, startButton.y + 10))
+            tela.blit(startTexto, (startButton.x + 20, startButton.y + 5))
 
             quitButton = pygame.Rect(10, 110, larguraButtonQuit, alturaButtonQuit)
             pygame.draw.rect(tela, branco, quitButton, border_radius=15)
             quitTexto = fonteMenu.render("Sair do Game", True, preto)
-            tela.blit(quitTexto, (quitButton.x + 30, quitButton.y + 10))
+            tela.blit(quitTexto, (quitButton.x + 20, quitButton.y + 5))
         else:
+            pygame.draw.rect(tela, branco, input_box)
             pygame.draw.rect(tela, color, input_box, 2)
             text_surface = fonteMenu.render(user_text, True, preto)
             tela.blit(text_surface, (input_box.x + 5, input_box.y + 8))
-            instrucao = fonteMenu.render("Digite seu nome e pressione Enter", True, branco)
-            tela.blit(instrucao, (input_box.x, input_box.y - 25))
+            instrucao = fonteMenu.render("Digite seu nome e pressione Enter", True, preto)
+            tela.blit(instrucao, (input_box.x, input_box.y - 28))
 
         pygame.display.update()
         relogio.tick(60)
@@ -139,6 +139,7 @@ def telaBoasVindas(nomeDoJogador):
         "Você controla a raquete com as setas para cima e para baixo.",
         "Rebata a bolinha o máximo que conseguir.",
         "Cada rebatida vale 1 ponto.",
+        "A cada rebatida a velocidade aumenta..."
         "Boa sorte!"
     ]
 
@@ -189,19 +190,24 @@ def jogar(nomeDoJogador):
     rodando = True
     colidiu_raquete = False
 
+    # Cria as masks uma vez antes do loop para otimizar
+    raquete_mask = pygame.mask.from_surface(raquete)
+    bolinha_mask = pygame.mask.from_surface(bolinha_img)
+
     pygame.mixer.music.play(-1)
 
     while rodando:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                rodando = False
+                pygame.quit()
+                exit()
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_SPACE:
                     pausado = not pausado
 
         if pausado:
-            texto_pause = fonteMorte.render("PAUSE", True, branco)
             tela.blit(fundoJogo, (0, 0))
+            texto_pause = fonteMorte.render("PAUSE", True, branco)
             tela.blit(texto_pause, (tamanho[0] // 2 - texto_pause.get_width() // 2,
                                     tamanho[1] // 2 - texto_pause.get_height() // 2))
             pygame.display.update()
@@ -225,29 +231,33 @@ def jogar(nomeDoJogador):
         raqueteRect = pygame.Rect(posicaoXRaquete, posicaoYRaquete, raquete.get_width(), raquete.get_height())
         bolinhaRect = pygame.Rect(posicaoXBolinha, posicaoYBolinha, bolinha_img.get_width(), bolinha_img.get_height())
 
-        if bolinhaRect.colliderect(raqueteRect):
-            if not colidiu_raquete:
-                posicaoXBolinha = posicaoXRaquete + raquete.get_width() + 1
+        if raqueteRect.colliderect(bolinhaRect):
+            offset = (int(posicaoXBolinha - posicaoXRaquete), int(posicaoYBolinha - posicaoYRaquete))
+            if raquete_mask.overlap(bolinha_mask, offset):
+                if not colidiu_raquete:
+                    posicaoXBolinha = posicaoXRaquete + raquete.get_width() + 1
 
-                max_velocidade = 28
-                fator_aceleracao = 1.1
+                    max_velocidade = 30
+                    fator_aceleracao = 1.1
 
-                nova_velocidadeX = -velocidadeBolinhaX * fator_aceleracao
+                    nova_velocidadeX = -velocidadeBolinhaX * fator_aceleracao
 
-                min_velocidade = 5
-                if abs(nova_velocidadeX) < min_velocidade:
-                    nova_velocidadeX = min_velocidade if nova_velocidadeX > 0 else -min_velocidade
+                    min_velocidade = 5
+                    if abs(nova_velocidadeX) < min_velocidade:
+                        nova_velocidadeX = min_velocidade if nova_velocidadeX > 0 else -min_velocidade
 
-                if abs(nova_velocidadeX) > max_velocidade:
-                    nova_velocidadeX = max_velocidade if nova_velocidadeX > 0 else -max_velocidade
+                    if abs(nova_velocidadeX) > max_velocidade:
+                        nova_velocidadeX = max_velocidade if nova_velocidadeX > 0 else -max_velocidade
 
-                velocidadeBolinhaX = nova_velocidadeX
+                    velocidadeBolinhaX = nova_velocidadeX
 
-                pontos += 1
-                velocidadeBolinhaY = random.choice([-4, -3, -2, 2, 3, 4])
-                somBolinha.play()
+                    pontos += 1
+                    velocidadeBolinhaY = random.choice([-4, -3, -2, 2, 3, 4])
+                    somBolinha.play()
 
-                colidiu_raquete = True
+                    colidiu_raquete = True
+            else:
+                colidiu_raquete = False
         else:
             colidiu_raquete = False
 
@@ -258,10 +268,9 @@ def jogar(nomeDoJogador):
 
         if posicaoXBolinha < 0:
             pygame.mixer.music.stop()
-            escreverDados(nomeDoJogador, pontos)  # substituir pela sua função atualizada
+            escreverDados(nomeDoJogador, pontos) 
 
-            # Substituir telaDead para a nova versão sem Tkinter e com log no Pygame
-            resultado = telaDead(tela, fonteMenu, fundoDead, branco, preto, relogio) 
+            resultado = telaDead(tela, fonteMenu, fundoDead, branco, preto, relogio, nomeDoJogador)
 
             if resultado == "reiniciar":
                 start()
@@ -270,7 +279,6 @@ def jogar(nomeDoJogador):
                 exit()
             return
 
-        # Passarinho voando de baixo para cima
         passarinho_y -= velocidade_passarinho
         if passarinho_y < -passarinho.get_height():
             passarinho_y = tamanho[1] + passarinho.get_height()
@@ -285,7 +293,11 @@ def jogar(nomeDoJogador):
         pontosTexto = fonteMenu.render(f"Pontos: {pontos}", True, branco)
         tela.blit(pontosTexto, (10, 10))
 
+        texto_pause_discreto = fonteMenu.render("Pressione espaço, ou fale pause, para pausar!", True, branco)
+        tela.blit(texto_pause_discreto, (tamanho[0] - 900, 10))
+
         pygame.display.update()
         relogio.tick(60)
+
 
 start()
