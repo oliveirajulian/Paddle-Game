@@ -12,5 +12,5 @@ setup(
     version="1.0",
     description="Jogo em Pygame com reconhecimento de voz",
     options={"build_exe": build_exe_options},
-    executables=[Executable("main.py", base="Win32GUI")]
+    executables=[Executable("main.py", base="Win32GUI", icon="recursos/icone.ico")]
 )
